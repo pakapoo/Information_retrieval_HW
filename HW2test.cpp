@@ -1,0 +1,643 @@
+#include <iostream>
+#include <fstream>
+#include <string.h>
+#include <vector>
+#include <stdlib.h>
+#include <stdio.h>
+#include <algorithm>
+#include <map>
+#include<iomanip>
+#include <windows.h>
+#include <math.h>
+using namespace std;
+
+bool ends(string s, char target[]);
+bool cons(int i, char target[]);
+int m(char target[]);
+bool vowelinstem(char target[]);
+bool cvc(char target[]);
+void step1(char target[]);
+void step2(char target[]);
+void step3(char target[]);
+void step4(char target[]);
+void step5(char target[]);
+void step6(char target[]);
+struct Arr5
+{
+    int num[5];
+};
+
+double cosine(string docX, string docY);
+void getTFIDF(string doc, map<string, Arr5> dict, double N);
+
+int main(){
+		
+	string line, path;
+	map<string, Arr5> dict;           
+	char delim[] = " ,.!\n''\"?();:-`~_%@$#1234567890}{/*&"; 
+	string stopwords[10000];
+	ifstream doc("C:\\Users\\Mark\\Desktop\\大五\\資訊檢索\\Stopwords.txt");
+	int count = 0, doc_num = 0;
+	while (getline(doc, line)){
+		stopwords[count] = line;
+		count++;
+	}
+	
+	char *t;
+	int i=0, k=0, r=0;
+	
+	char InputPath[65535] = "C:\\Users\\Mark\\Desktop\\大五\\資訊檢索\\IRTM12";    //放要讀取檔案的資料夾路徑到InputPath字串裡
+    char szDir[65535];
+    char dir[65535];
+    WIN32_FIND_DATA FileData;
+    HANDLE          hList;
+    sprintf(szDir, "%s\\*", InputPath );
+	
+	
+if ( (hList = FindFirstFile(szDir, &FileData))==INVALID_HANDLE_VALUE )
+    printf("No files be found.\n\n");
+else {
+    while (1) {
+    	if (!FindNextFile(hList, &FileData)) {
+            if (GetLastError() == ERROR_NO_MORE_FILES)
+                break;
+        }
+    //sprintf(dir, "%s\\%s", InputPath, FileData.cFileName);
+    string x = FileData.cFileName;
+	ifstream doc("C:\\Users\\Mark\\Desktop\\大五\\資訊檢索\\IRTM12\\"+x);
+	cout<<endl<<x<<endl;    //print currently processing file
+	doc_num++;
+	cout<<doc_num<<endl;
+	k=0, r=0, i=0;               //initialize
+	map<string, int> document;    //存tf 
+	map<string, int>::iterator mp1; //initialize
+	for(mp1 = document.begin(); mp1  != document.end(); mp1++){
+		(*mp1).second = 0;
+	}
+	char target[15000][50];
+	memset(target, 0, sizeof(target));
+	string result[15000];
+	map<string, Arr5>::iterator mp; //initialize
+	for(mp = dict.begin(); mp  != dict.end(); mp++){
+		(*mp).second.num[3] = 0;
+	}
+	while (getline(doc, line)){
+		transform(line.begin(), line.end(), line.begin(), ::tolower);  //convert to lowercase
+	    t = strtok ((char*)line.c_str(), delim);   //parse with delim
+	    while (t != NULL){
+	    	strcpy(target[i], t);      //copy the string pointed to char array 'target'
+	    	cout<<i<<" "<<(target[i])<<endl;
+			i++;
+	    	t = strtok(NULL, delim);   //t pointing to the next delimiter position
+	  	} 
+	}
+
+	/* 'target' is a char array, awaiting to undergo Porter's algorithm */
+	while(strlen(target[k]) != 0){
+		step1(target[k]);
+		step2(target[k]);
+		step3(target[k]);
+		step4(target[k]);
+		step5(target[k]);
+		step6(target[k]);
+		
+		int check_delete = 1;
+		for(int j=0; j<sizeof(stopwords)/sizeof(stopwords[0]); j++)
+		{
+			if (strcmp(target[k], stopwords[j].c_str())==0)
+			{
+				check_delete = 0;
+				break;
+			}
+		}
+		if(check_delete){
+			result[r] = target[k];
+			document[result[r]]++;
+			
+			if(dict.count(result[r])){
+				Arr5 temp;
+				temp = dict[result[r]];
+				temp.num[0]++;
+				dict[result[r]] = temp;
+				if (dict[result[r]].num[3] != 1){
+					dict[result[r]].num[2] = dict[result[r]].num[2]+1;
+					dict[result[r]].num[3] = 1;
+				}
+				
+				cout<<result[r]<<" "<<document[result[r]]<<" "<<dict[result[r]].num[2]<<endl;
+			}
+			
+			else{
+				Arr5 temp1;
+				int array[] = {1,0,0,0,0};
+				std::copy(array, array+5, temp1.num);
+				dict[result[r]] = temp1;
+				if (dict[result[r]].num[3] != 1){
+					dict[result[r]].num[2] = dict[result[r]].num[2]+1;
+					dict[result[r]].num[3] = 1;
+				}
+				
+				cout<<r<<" "<<result[r]<<" "<<dict[result[r]].num[0]<<" "<<dict[result[r]].num[2]<<endl;
+			} 
+
+			r++;
+		}
+		
+		k++;		
+	} 
+	
+	cout<<endl<<endl;
+	
+	ofstream outfile ("C:\\Users\\Mark\\Desktop\\大五\\資訊檢索\\IRTM_OUT\\"+x);
+	outfile<<std::left<<setw(70)<<"term"<<setw(70)<<"tf"<<endl;
+	map<string, int>::iterator it;
+	for(it = document.begin(); it != document.end(); it++){
+		outfile<<std::left<<setw(70)<<(*it).first;
+		outfile<<std::left<<setw(70)<<(*it).second<<endl;
+	}
+	outfile.close();
+	}
+}
+
+	ofstream outfile ("C:\\Users\\Mark\\Desktop\\dictionary.txt");
+	outfile<<std::left<<setw(70)<<"t_index"<<setw(70)<<"term"<<setw(70)<<"df"<<endl;
+
+	map<string, Arr5>::iterator it;
+	int v = 1, sum = 0;
+	
+	//dictionary export
+	for(it = dict.begin(); it != dict.end(); it++){
+		(*it).second.num[1] = v;
+		cout<<std::left<<setw(70)<<(*it).second.num[1];
+		cout<<std::left<<setw(70)<<(*it).first;
+		cout<<std::left<<setw(70)<<(*it).second.num[2]<<endl;
+		outfile<<std::left<<setw(70)<<(*it).second.num[1];
+		outfile<<std::left<<setw(70)<<(*it).first;
+		outfile<<std::left<<setw(70)<<(*it).second.num[2]<<endl;
+        v++;
+	}  
+	cout<<"total doc number: "<<doc_num-1;    //total doc number 
+
+	
+	char InputPathA[65535] = "C:\\Users\\Mark\\Desktop\\大五\\資訊檢索\\IRTM_OUT";    //放要讀取檔案的資料夾路徑到InputPath字串裡
+    char szDirA[65535];
+    char dirA[65535];
+    WIN32_FIND_DATA AFileData;
+    HANDLE          AhList;
+    sprintf(szDirA, "%s\\*", InputPathA );
+    int f=0;
+if ( (AhList = FindFirstFile(szDirA, &AFileData))==INVALID_HANDLE_VALUE )
+    printf("No files be found.\n\n");
+else {
+	while (1) {
+	    if (!FindNextFile(AhList, &AFileData)) {
+	        if (GetLastError() == ERROR_NO_MORE_FILES)
+	            break;
+	    }
+	    else{
+	    	f++;
+			string x = AFileData.cFileName;
+			getTFIDF(x, dict, doc_num-1);	
+		}
+	}
+}
+	string a = "Doc1.txt", b = "Doc2.txt";
+	cosine(a, b);
+	cout<<"    "<<f-1;
+	return 0;
+}
+
+
+/* check if a word end with the input string s */
+bool ends(string s, char target[]) {
+	int l = s.length(), k = strlen(target);
+	int o = k-l+1;
+	if (o < 0)
+		return false;
+	char sc[100] = "";
+	strcpy(sc, s.c_str());
+	for (int i = 0; i < s.length(); i++){
+		if (target[o+i-1] != sc[i])
+			return false;
+	}
+	return true;
+}
+
+/* cons(i) is true <=> target[i] is a consonant */
+bool cons(int i, char target[]) {
+	switch (target[i]) {
+		case 'a': case 'e': case 'i': case 'o': case 'u': 
+			return false;
+		case 'y': 
+			if (i==0)
+				return true;
+			else 
+				return !cons(i-1, target);     //if Y is preceded by a consonant, then it's not a consonant
+		default: 
+			return true;
+	}
+}
+
+/* c is a consonant sequence and v a vowel sequence
+			  <c><v>       gives 0
+			  <c>vc<v>     gives 1
+			  <c>vcvc<v>   gives 2
+			  <c>vcvcvc<v> gives 3
+			  ....		 					*/
+int m(char target[]) {
+	int n = 0, i = 0, j = strlen(target)-1;
+	while(true) {                     //get the end of starting c, meaning the next one is v
+		if (i > j)                    
+			return n;
+		if (!cons(i, target))         
+			break; 
+		i++;                          
+	}
+	i++;
+	while(true) {
+		while(true) {
+			if (i > j)                //get the end of v, meaning the next one is c
+				return n;             //extreme case: CV will return 0
+			if (cons(i, target)) 
+				break;                
+			i++;
+		}
+		i++;
+		n++;
+		while(true) {                 //get the end of c, meaning the next one is v
+			if (i > j) 
+				return n;			  //extreme case: CVC will return 1
+			if (!cons(i, target)) 
+				break;
+			i++;
+		}
+		i++;
+	}
+}
+
+/* find if there's vowel in input char array */
+bool vowelinstem(char target[]) {
+	int i;
+	for (i = 0; i <= strlen(target)-1; i++)
+		if (! cons(i, target))
+			return true;
+	return false;
+}
+
+/* the stem ends cvc, where the second c is not W, X or Y */
+bool cvc(char target[]) {
+	int i = strlen(target)-1;
+	if (i < 2 || !cons(i, target) || cons(i-1, target) || !cons(i-2, target))
+		return false;
+	int last = target[i];
+	if (last == 'w' || last == 'x' || last == 'y')
+		return false;
+	return true;
+}
+
+
+/* step1() gets rid of plurals and -ed or -ing. e.g.
+	1(a)	
+				SSES -> SS                      
+			    IES  -> I                         
+			    SS   -> SS                     
+			    S    ->    		  
+	1(b)		  
+		  (m>0) EED -> EE                                          
+		  (*v*) ED  ->                                                   
+		  (*v*) ING ->   
+	1(c)
+		If the second or third of the rules in Step 1b is successful, the following is done:
+
+			    AT -> ATE                       conflat(ed)  ->  conflate
+			    BL -> BLE                       troubl(ed)   ->  trouble
+			    IZ -> IZE                       siz(ed)      ->  size
+			    (*d and not (*L or *S or *Z))
+			       -> single letter
+			                                    hopp(ing)    ->  hop
+			                                    tann(ed)     ->  tan
+			                                    fall(ing)    ->  fall
+			                                    hiss(ing)    ->  hiss
+			                                    fizz(ed)     ->  fizz
+			    (m=1 and *o) -> E               fail(ing)    ->  fail
+			                                    fil(ing)     ->  file                   
+	       									*/
+void step1(char target[]) {
+	int k = strlen(target)-1;
+	if (target[k] == 's') {
+	char temp[100] = "";
+		if (ends("sses", target))              // SSES -> SS  
+		{
+			strncpy(temp, target, strlen(target)-2);
+			if(strlen(temp) != 0)
+				strcpy(target, temp);
+		}
+		else if (ends("ies", target))          // IES  -> I 
+		{
+			strncpy(temp, target, strlen(target)-2);
+			if(strlen(temp) != 0)
+				strcpy(target, temp);
+		}
+		else if (k>=1 && (target[k-1] != 's'))   			 // S    ->   ,but SS   -> SS  	
+		{
+			strncpy(temp, target, strlen(target)-1);
+			if(strlen(temp) != 0)
+				strcpy(target, temp);
+		}
+	}
+	char temp[100] = "";
+	if (ends("eed", target)) {                 //(m>0) EED -> EE   
+		if (m(target) > 0)
+		{
+			strncpy(temp, target, strlen(target)-1);
+			if(strlen(temp) != 0)
+				strcpy(target, temp);	
+		}
+	} 
+	else if ((ends("ed", target) || ends("ing", target)) && vowelinstem(target)) {    //(*v*) ED  ->  , ING ->      and 1(c)
+		if (ends("ed", target))
+		{
+			strncpy(temp, target, strlen(target)-2);
+			if(strlen(temp) != 0)
+				strcpy(target, temp);	
+		}
+		if (ends("ing", target))
+		{
+			strncpy(temp, target, strlen(target)-3);
+			if(strlen(temp) != 0)
+				strcpy(target, temp);	
+		}
+			
+		if (ends("at", target))
+			strcat(target, "e");
+		else if (ends("bl", target))
+			strcat(target, "e");
+		else if (ends("iz", target))
+			strcat(target, "e");
+		else if ((target[strlen(target)-1] == target[strlen(target)-2])&&(target[strlen(target)-1] != 'l')
+					&&(target[strlen(target)-1] != 's')&&(target[strlen(target)-1] != 'z')&&(strlen(target) != 1))
+		{			
+			target[strlen(target)-1]='\0';
+		}
+		else if (m(target) == 1 && cvc(target))		
+			strcat(target, "e");
+			
+		
+	}
+}
+
+/* step2() if there is "another" vowel in the token, replace ending y with i */
+void step2(char target[]) {
+	char temp[100] = "";
+	strncpy(temp, target, strlen(target)-1);
+	if (ends("y", target) && vowelinstem(temp))
+		target[strlen(target)-1] = 'i';
+}
+
+void step3(char target[]) {
+	if (m(target) == 0)
+		return;
+	
+	char temp[100] = "";
+	switch (target[strlen(target)-2]) {
+		case 'a':
+			if (ends("ational", target)) {strncpy(temp, target, strlen(target)-7); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "ate"); break; }
+			if (ends("tional", target)) {strncpy(temp, target, strlen(target)-6); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "tion"); break; }
+			break;
+		case 'c':
+			if (ends("enci", target)) {strncpy(temp, target, strlen(target)-4); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "ence"); break; }
+			if (ends("anci", target)) {strncpy(temp, target, strlen(target)-4); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "ance"); break; }
+		break;
+		case 'e':
+			if (ends("izer", target)) {strncpy(temp, target, strlen(target)-4); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "ize"); break; }
+			break;
+		case 'l':
+			if (ends("bli", target)) {strncpy(temp, target, strlen(target)-3); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "ble"); break; }
+			if (ends("alli", target)) {strncpy(temp, target, strlen(target)-4); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "al"); break; }
+			if (ends("entli", target)) {strncpy(temp, target, strlen(target)-5); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "ent"); break; }
+			if (ends("eli", target)) {strncpy(temp, target, strlen(target)-3); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "e"); break; }
+			if (ends("ousli", target)) {strncpy(temp, target, strlen(target)-5); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "ous"); break; }
+			break;
+		case 'o':
+			if (ends("ization", target)) {strncpy(temp, target, strlen(target)-7); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "ize"); break; }
+			if (ends("ation", target)) {strncpy(temp, target, strlen(target)-5); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "ate"); break; }
+			if (ends("ator", target)) {strncpy(temp, target, strlen(target)-4); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "ate"); break; }
+			break;
+		case 's':
+			if (ends("alism", target)) {strncpy(temp, target, strlen(target)-5); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "al"); break; }
+			if (ends("iveness", target)) {strncpy(temp, target, strlen(target)-7); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "ive"); break; }
+			if (ends("fulness", target)) {strncpy(temp, target, strlen(target)-7); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "ful"); break; }
+			if (ends("ousness", target)) {strncpy(temp, target, strlen(target)-7); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "ous"); break; }
+			break;
+		case 't':
+			if (ends("aliti", target)) {strncpy(temp, target, strlen(target)-5); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "al"); break; }
+			if (ends("iviti", target)) {strncpy(temp, target, strlen(target)-5); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "ive"); break; }
+			if (ends("biliti", target)) {strncpy(temp, target, strlen(target)-6); if(strlen(temp) != 0) strcpy(target, temp); strcat(target, "ble"); break; }
+			break;
+		case 'g':
+			if (ends("logi", target)) {strncpy(temp, target, strlen(target)-1); if(strlen(temp) != 0) strcpy(target, temp); break; }
+			break;
+		default :
+			break;
+	}
+	return;
+}
+
+void step4(char target[]) {
+	if (m(target) == 0)
+		return;
+	
+	char temp[100] = "";	
+	switch (target[strlen(target)-1]) {
+		case 'e':
+			if (ends("icate", target)) {strncpy(temp, target, strlen(target)-3); if(strlen(temp) != 0) strcpy(target, temp); break; }
+			if (ends("ative", target)) {strncpy(temp, target, strlen(target)-5); if(strlen(temp) != 0) strcpy(target, temp); break; }
+			if (ends("alize", target)) {strncpy(temp, target, strlen(target)-3); if(strlen(temp) != 0) strcpy(target, temp); break; }
+			break;
+		case 'i':
+			if (ends("iciti", target)) {strncpy(temp, target, strlen(target)-3); if(strlen(temp) != 0) strcpy(target, temp); break; }
+			break;
+		case 'l':
+			if (ends("ical", target)) {strncpy(temp, target, strlen(target)-2); if(strlen(temp) != 0) strcpy(target, temp); break; }
+			if (ends("ful", target)) {strncpy(temp, target, strlen(target)-3); if(strlen(temp) != 0) strcpy(target, temp); break; }
+			break;
+		case 's':
+			if (ends("ness", target)) {strncpy(temp, target, strlen(target)-4); if(strlen(temp) != 0) strcpy(target, temp); break; }
+			break;
+	}
+	return;
+}
+
+void step5(char target[]) {
+	if (m(target) < 2)
+		return;
+	
+	char temp[100] = "";    //have to initialize!!!
+	switch (target[strlen(target)-2]) {
+		case 'a':
+			if (ends("al", target)) {strncpy(temp, target, strlen(target)-2); if(strlen(temp) != 0) strcpy(target, temp); break; }
+		case 'c':
+			if (ends("ance", target)) {strncpy(temp, target, strlen(target)-4); if(strlen(temp) != 0) strcpy(target, temp); break; }
+			if (ends("ence", target)) {strncpy(temp, target, strlen(target)-4); if(strlen(temp) != 0) strcpy(target, temp); break; }
+		case 'e':
+			if (ends("er", target)) {strncpy(temp, target, strlen(target)-2); if(strlen(temp) != 0) strcpy(target, temp); break; }
+		case 'i':
+			if (ends("ic", target)) {strncpy(temp, target, strlen(target)-2); if(strlen(temp) != 0) strcpy(target, temp); break; }
+		case 'l':
+			if (ends("able", target)) {strncpy(temp, target, strlen(target)-4); if(strlen(temp) != 0) strcpy(target, temp); break; }
+			if (ends("ible", target)) {strncpy(temp, target, strlen(target)-4); if(strlen(temp) != 0) strcpy(target, temp); break; }
+		case 'n':
+			if (ends("ant", target)) {strncpy(temp, target, strlen(target)-3); if(strlen(temp) != 0) strcpy(target, temp); break; }
+			if (ends("ement", target)) {strncpy(temp, target, strlen(target)-5); if(strlen(temp) != 0) strcpy(target, temp); break; }
+			if (ends("ment", target)) {strncpy(temp, target, strlen(target)-4); if(strlen(temp) != 0) strcpy(target, temp); break; }
+			if (ends("ent", target)) {strncpy(temp, target, strlen(target)-3); if(strlen(temp) != 0) strcpy(target, temp); break; }
+		case 'o':
+			if (ends("ion", target) && ((strlen(target)-4) >= 0) && (target[strlen(target)-4] == 's' || target[strlen(target)-4] == 't')) 
+				{strncpy(temp, target, strlen(target)-3); if(strlen(temp) != 0) strcpy(target, temp); break; }
+			if (ends("ou", target)) {strncpy(temp, target, strlen(target)-2); if(strlen(temp) != 0) strcpy(target, temp); break; }
+		case 's':
+			if (ends("ism", target)) {strncpy(temp, target, strlen(target)-3); if(strlen(temp) != 0) strcpy(target, temp); break; }
+		case 't':
+			if (ends("ate", target)) {strncpy(temp, target, strlen(target)-3); if(strlen(temp) != 0) strcpy(target, temp); break; }
+			if (ends("iti", target)) {strncpy(temp, target, strlen(target)-3); if(strlen(temp) != 0) strcpy(target, temp); break; }
+		case 'u':
+			if (ends("ous", target)) {strncpy(temp, target, strlen(target)-3); if(strlen(temp) != 0) strcpy(target, temp); break; }
+		case 'v':
+			if (ends("ive", target)) {strncpy(temp, target, strlen(target)-3); if(strlen(temp) != 0) strcpy(target, temp); break; }
+		case 'z':
+			if (ends("ize", target)) {strncpy(temp, target, strlen(target)-3); if(strlen(temp) != 0) strcpy(target, temp); break; }
+		default:
+			return;
+	}
+	return;
+}
+
+void step6(char target[]) {
+			
+	char temp[100] = "";
+	strncpy(temp, target, strlen(target)-1);
+	
+	char tempt[100] = "";
+	if (m(target)>1 && target[strlen(target)-1] == 'e') 
+	{
+		strncpy(tempt, target, strlen(target)-1);
+		if(strlen(temp) != 0) 
+			strcpy(target, tempt);
+	}
+	if (m(target)==1 && target[strlen(target)-1] == 'e' && !cvc(temp) && strlen(temp)>=3) 
+	{
+		strncpy(tempt, target, strlen(target)-1); 
+		if(strlen(temp) != 0)
+			strcpy(target, tempt);
+	}
+	if (m(target)>1 && target[strlen(target)-1] != 'L' && (target[strlen(target)-1] == target[strlen(target)-2]))
+	{
+		strncpy(tempt, target, strlen(target)-1); 
+		if(strlen(temp) != 0)
+			strcpy(target, tempt);
+	}
+}
+
+double cosine(string docX, string docY){
+	
+	
+	ifstream doc1("C:\\Users\\Mark\\Desktop\\大五\\資訊檢索\\IRTM_TFIDF\\"+docX);
+	ifstream doc2("C:\\Users\\Mark\\Desktop\\大五\\資訊檢索\\IRTM_TFIDF\\"+docY);
+	map<string, double> dict1;
+	map<string, double> dict2;
+	string line;
+	char *t, *s;
+	getline(doc1, line);
+	getline(doc2, line);
+	char delim[] = " ";
+	cout<<endl;
+	while (getline(doc1, line)){
+	    t = strtok ((char*)line.c_str(), delim);   //parse with delim
+	    while (t != NULL){
+	    	string term(t);
+			s = strtok(NULL, delim);   //t pointing to the next delimiter position
+			double ans = atof(s);
+			cout<<term<<"\t"<<s<<endl;
+			dict1[term] = ans;
+			t = strtok(NULL, delim);
+	    }
+	}
+	cout<<endl;
+	//cout<<dict1.find("accept")->second<<dict1.find("thi")->second<<dict1.find("strike")->second+dict1.find("thi")->second;
+	while (getline(doc2,line)){
+	    t = strtok ((char*)line.c_str(), delim);   //parse with delim
+	    while (t != NULL){
+	    	string term(t);
+			s = strtok(NULL, delim);   //t pointing to the next delimiter position
+			double ans = atof(s);
+			cout<<term<<"\t"<<s<<endl;
+			dict2[term] = ans;
+			t = strtok(NULL, delim);
+	    }
+	} 
+	
+	double sum = 0, unit1 = 0, unit2 = 0;
+	map<string, double>::iterator it1;
+	map<string, double>::iterator it2;
+
+
+	map<string, double>::iterator it;
+	for(it = dict1.begin(); it != dict1.end(); it++){
+		if(dict2.find(it->first) != dict2.end()){
+			//std::cout<<(*it).first<<" "<<(*it).second<<endl;
+			//std::cout<<(*dict2.find(it->first)).first<<" "<<(*dict2.find(it->first)).second<<endl;
+			sum += (*it).second * (dict2.find(it->first)->second);
+		}
+	}
+	cout<<sum;
+}
+
+void getTFIDF(string doc, map<string, Arr5> dict, double N){
+	
+	ifstream docM("C:\\Users\\Mark\\Desktop\\大五\\資訊檢索\\IRTM_OUT\\"+doc);
+	ofstream outfile ("C:\\Users\\Mark\\Desktop\\大五\\資訊檢索\\IRTM_TFIDF\\Doc"+doc);
+	map<string, double> dict1;
+	string line;
+	char *t, *s;
+	getline(docM, line);
+	char delim[] = " ";
+	while (getline(docM, line)){
+	    t = strtok ((char*)line.c_str(), delim);   //parse with delim
+	    while (t != NULL){
+	    	string term(t);
+			s = strtok(NULL, delim);   //t pointing to the next delimiter position
+			double ans = atof(s);
+			dict1[term] = ans;
+			t = strtok(NULL, delim);
+	    }
+	}
+	
+	map<string, double>::iterator it;
+	map<string, double>::iterator it1;
+	map<string, double>::iterator it2;
+	double sum = 0, unit1 = 0;
+	outfile<<std::left<<"The size of document terms is:  "<<dict1.size()<<endl;
+	
+
+	for(it = dict1.begin(); it != dict1.end(); it++){
+		string temp = (*it).first;
+		
+		//cout<<temp<<" "<<(*it).second<<" "<<log10(N/((*dict.find(it->first)).second.num[2]))<<" "<<((*dict.find(it->first)).second.num[2])<<" "<<N<<endl;
+		dict1[(*it).first] = (*it).second * log10(N/((*dict.find(it->first)).second.num[2]));
+		//cout<<(*dict1.find(it->first)).second<<endl;
+	}	
+	for(it1 = dict1.begin(); it1 != dict1.end(); it1++){
+		unit1 += (*it1).second * (*it1).second;
+		cout<<(*it1).second<<endl;
+	}
+	unit1 = sqrt(unit1);
+	cout<<doc<<"unit = "<<unit1<<endl;
+	for(it2 = dict1.begin(); it2 != dict1.end(); it2++){
+
+		dict1[(*it2).first] = (*it2).second /unit1;
+		//cout<<(*dict1.find(it->first)).second<<endl;
+		outfile<<std::left<<setw(70)<<((*dict.find(it2->first)).second.num[1]);
+		outfile<<std::left<<setw(70)<<(*it2).second<<endl;
+	}
+}
+
